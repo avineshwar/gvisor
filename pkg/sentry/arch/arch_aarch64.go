@@ -17,7 +17,6 @@
 package arch
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -48,10 +47,30 @@ const ARMTrapFlag = uint64(1) << 21
 // aarch64FPState is aarch64 floating point state.
 type aarch64FPState []byte
 
-// initAarch64FPState sets up initial state.
+// memset is similar to memset() in C.
+func memset(a []byte, b byte) {
+	if len(a) == 0 {
+		return
+	}
+
+	// Double, until we reach power of 2 >= len(a), same as bytes.Repeat,
+	// but without allocation.
+	a[0] = b
+	for i, l := 1, len(a); i < l; i *= 2 {
+		copy(a[i:], a[:i])
+	}
+}
+
+// initAarch64FPState resets the fpstate.
+//
+// Related code in Linux kernel: fpsimd_flush_thread().
+// FPCR = FPCR_RM_RN (0x0 << 22).
+//
+// Currently, aarch64FPState is only a space of 0x210 length for fpstate.
+// The fp head is useless in sentry/ptrace/kvm.
+//
 func initAarch64FPState(data aarch64FPState) {
-	binary.LittleEndian.PutUint32(data, fpsimdMagic)
-	binary.LittleEndian.PutUint32(data[4:], fpsimdContextSize)
+	memset(data, 0)
 }
 
 func newAarch64FPStateSlice() []byte {
