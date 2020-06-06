@@ -419,6 +419,34 @@ TEST_P(IPUnboundSocketTest, InsufficientBufferTOS) {
   EXPECT_THAT(sendmsg(socket->get(), &msg, 0), SyscallFailsWithErrno(EINVAL));
 }
 
+TEST_P(IPUnboundSocketTest, ReuseAddrDefault) {
+  auto socket = ASSERT_NO_ERRNO_AND_VALUE(NewSocket());
+
+  int get = -1;
+  socklen_t get_sz = sizeof(get);
+  EXPECT_THAT(
+      getsockopt(socket->get(), SOL_SOCKET, SO_REUSEADDR, &get, &get_sz),
+      SyscallSucceedsWithValue(0));
+  EXPECT_EQ(get, kSockOptOff);
+  EXPECT_EQ(get_sz, sizeof(get));
+}
+
+TEST_P(IPUnboundSocketTest, SetReuseAddr) {
+  auto socket = ASSERT_NO_ERRNO_AND_VALUE(NewSocket());
+
+  EXPECT_THAT(setsockopt(socket->get(), SOL_SOCKET, SO_REUSEADDR, &kSockOptOn,
+                         sizeof(kSockOptOn)),
+              SyscallSucceedsWithValue(0));
+
+  int get = -1;
+  socklen_t get_sz = sizeof(get);
+  EXPECT_THAT(
+      getsockopt(socket->get(), SOL_SOCKET, SO_REUSEADDR, &get, &get_sz),
+      SyscallSucceedsWithValue(0));
+  EXPECT_EQ(get, kSockOptOn);
+  EXPECT_EQ(get_sz, sizeof(get));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     IPUnboundSockets, IPUnboundSocketTest,
     ::testing::ValuesIn(VecCat<SocketKind>(VecCat<SocketKind>(
